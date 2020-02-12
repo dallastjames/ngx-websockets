@@ -1,27 +1,83 @@
 # NgxWebsockets
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 8.3.24.
+## Usage
 
-## Development server
+Import the NgxWebsocketsModule into your application
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+```Typescript
+// App.module.ts
+imports: [
+    NgxWebsocketsModule.forRoot()
+]
+```
 
-## Code scaffolding
+Create a service that extends the WebsocketService. This class will be the controller for your socket connection. You can create many socket connections by creating many services that extend the base socket service.
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+The class should be decorated with the `@WebsocketGateway()` decorator. The decorator is used to configure your socket connection for this class. Both host and namespace are optional.
 
-## Build
+```Typescript
+@WebsocketGateway({
+    host: 'http://localhost:3000',
+    namespace: '/myNamespace'
+})
+export class MySocket extends WebsocketService {}
+```
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+`@WebsocketReciever(eventName)` decorator is used to listen for events from the socket. It will provide an observable that can be subscribed to that will emit whenever an event is received
 
-## Running unit tests
+```Typescript
+@WebsocketReceiver('newMessage')
+public newMessage$: Observable<string>
+```
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+`@WebsocketEmitter(eventName)` decorator is used to emit events into the socket connection. It creates the type of `WebsocketEmittable<T>` which is an object with an `emit(value)` method.
 
-## Running end-to-end tests
+```Typescript
+@WebsocketEmitter('createMessage')
+public createMessage: WebsocketEmittable<string>;
+```
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
+## Example
 
-## Further help
+```Typescript
+import {
+    WebsocketService,
+    WebsocketReciever,
+    WebsocketEmitter,
+    WebsocketEmittable
+} from 'ngx-websocket';
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+@Injectable({
+    providedIn: 'root'
+})
+@WebsocketGateway({
+    host: 'http://localhost:3000',
+    namespace: '/myNamespace'
+})
+export class MySocket extends WebsocketService {
+    @WebsocketReceiver('newMessage')
+    public newMessage$: Observable<string>
+
+    @WebsocketEmitter('createMessage')
+    public createMessage: WebsocketEmittable<string>;
+}
+```
+
+```Typescript
+export class MyComponent {
+    constructor(private socket: MySocket) {}
+
+    ngOnInit() {
+        this.socket.connect();
+        this.socket.newMessage$.subscribe(newMessage => {...});
+    }
+
+    ngOnDestroy() {
+        this.socket.disconnect();
+    }
+
+    sendMessage(message: string) {
+        this.socket.createMessage.emit(message);
+    } 
+}
+```
